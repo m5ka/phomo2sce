@@ -120,7 +120,7 @@ class PhomoRule
         else
           m_del = true
         end
-        @environment = " / #{mp[1]}"
+        @environment = mp[1]
         return rule_wildcard_env_movement mp[0], mp[2], m_del
       else
         return rule_wildcard_movement mp[0], mp[1], mp[2]
@@ -174,10 +174,20 @@ class PhomoRule
     end
   end
 
-  def environment # for each environment, add blank space before for readability
-    #TODO: check in @environment for things already there
-    # =>  (thrown out from the initial rules)
-    @environment ? @environment : " / ENV"
+  # PHOMO   / CND / EXP / ELS
+  # SCE     / CND ! EXP ? ELS
+  def environment
+    constituents = @rule.length - 2
+    @environment ||= @rule[2] if constituents >= 1
+    env_construct(@environment)
+  end
+
+  def env_construct(cnd=nil, exp=nil, els=nil)
+    c = ""
+    c << " / #{cnd}" unless cnd.nil?
+    c << " ! #{exp}" unless exp.nil?
+    c << " ? #{els}" unless els.nil?
+    c
   end
 
   #####################
@@ -260,24 +270,20 @@ class PhomoRule
   # ENVIRONMENT CONSTRUCTORS #
   ############################
 
-  def env_g(x)
-    " / #{x}"
-  end
-
   def env_word_final
-    env_g "_#"
+    "_#"
   end
 
   def env_word_initial
-    env_g "#_"
+    "#_"
   end
 
   def env_after(x)
-    env_g "#{x}_"
+    "#{x}_"
   end
 
   def env_before(x)
-    env_g "_#{x}"
+    "_#{x}"
   end
 
 end
