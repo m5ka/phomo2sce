@@ -4,7 +4,7 @@
 **phomo2sce** is a sound-change translator that converts an input (PhoMo 3 format) and translates and outputs it in SCE format.
 
 ## Usage
-You can use phomo2sce to output a translation of a PhoMo newline-separated file of rules.
+You can use phomo2sce to output a translation of a PhoMo newline-separated file of rules. You must specify the filename with the flag `-f`.
 ```
 ruby phomo2sce.rb -f <filename> [-l]
 ```
