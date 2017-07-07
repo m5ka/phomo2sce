@@ -4,7 +4,8 @@ class PhomoRule
   end
 
   def to_sce
-    "#{initial}#{environment}" # combine rule and conditions
+    # combine rule (trg & chg) and conditions
+    "#{initial(@rule[0], @rule[1])}#{environment}"
   end
 
   private
@@ -82,7 +83,6 @@ class PhomoRule
   end
 
   def space_rule?(tester)
-    puts "testing #{tester}"
     if (sr = /\A((.*)#%)|%#(.*)\z/.match(tester))
       is_prefix = sr[3].nil?
       # return word to add, (bool) prefix? [false = suffix]
@@ -95,27 +95,27 @@ class PhomoRule
   ####################
   # RULE TRANSLATION #
   ####################
-  def initial(literal=false) # (TRG and CHG)
+  def initial(trg, chg, literal=false) # (TRG and CHG)
     # empty rule (you never know what blasphemous crap they might try)
     # /
-    if @rule[0].empty? && @rule[1].empty?
+    if trg.empty? && chg.empty?
       return ">"
 
     # addition
     # /a
-    elsif @rule[0].empty?
-      return rule_insertion @rule[1], literal
+  elsif trg.empty?
+      return rule_insertion chg, literal
 
     # subtraction
     # a/
-    elsif @rule[1].empty?
-      return rule_deletion @rule[0], literal
+  elsif chg.empty?
+      return rule_deletion chg, literal
 
     # movement from a certain point and length to destination
     # #/>1@3^2   -->   *?{2}@0>^?@2
     # #/>#_@_#^2   -->   *?{2} > ^?_#/#_
     # #/>!#_@_#^2   -->   *?{2} > ^_#/#_
-    elsif (mp = movement_point_length? @rule[1])
+    elsif (mp = movement_point_length? chg)
       if /_/ =~ mp[1]
         if /!/ =~ mp[1]
           m_del = false
@@ -131,7 +131,7 @@ class PhomoRule
 
     # operation at a certain point and length
     # #/##@1^2   -->   *?{2}@0>%%
-    elsif (pd = point_length_operation? @rule[1])
+  elsif (pd = point_length_operation? chg)
       if pd[0].empty?
         # if no change given, i.e deletion
         return rule_wildcard_deletion pd[2], pd[1], literal
@@ -142,12 +142,12 @@ class PhomoRule
 
     # insertion at a certain point
     # #/#a@1
-    elsif @rule[0] == '*' && (ir = insertion_rule? @rule[1])
-      if contains_category? @rule[1]
+    elsif trg == '*' && (ir = insertion_rule? chg)
+      if contains_category? chg
         # movement with category
         # #/#C@2   -->   [C]@1 > ^_#
-        m_dest = @rule[1].start_with?('%') ? '_#' : '#_'
-        return rule_env_movement @rule[1].sub('%', ''), m_dest, false
+        m_dest = chg.start_with?('%') ? '_#' : '#_'
+        return rule_env_movement chg.sub('%', ''), m_dest, false
       else
         # regular insertion
         return rule_point_insertion ir[0], ir[1], literal
@@ -155,31 +155,34 @@ class PhomoRule
 
     # generic rule at a certain point
     # a@1/e
-    elsif (pr = position_rule? @rule[1])
-      return rule_point_generic @rule[0], pr[0], pr[1]
+    elsif (pr = position_rule? chg)
+      return rule_point_generic trg, pr[0], pr[1]
 
     # reverse point and length portion of word
     # #/?3^2   -->   *?{2}@2><
-    elsif (lr = reverse_length_rule? @rule[1])
+    elsif (lr = reverse_length_rule? chg)
       return rule_position_length_reverse lr[0], lr[1]
 
     # reverse portion of word from certain point
     # #/?3   -->   *@2><
-    elsif (wr = reverse_rule? @rule[1])
+    elsif (wr = reverse_rule? chg)
       return rule_position_reverse wr
 
     # insertion of separate word
     # #/#-na   -->   +#na / #_
     # #/na-#   -->   +na# / _#
-    elsif (sr = space_rule? @rule[1])
-      @environment = sr[1] ? env_word_initial : env_word_final
-      puts "0 #{sr[0]} 1 #{sr[1]} L #{literal}"
-      return rule_word_insertion sr[0], sr[1], literal
+    elsif (sr = space_rule? chg)
+      if literal || !(@rule[2].empty?)
+        return rule_word_insertion sr[0], sr[1], true
+      else
+        @environment = sr[1] ? env_word_initial : env_word_final
+        return rule_word_insertion sr[0], sr[1], false
+      end
 
     # generic change
     # a/e   -->   a > e
     else
-      return rule_generic @rule[0], @rule[1]
+      return rule_generic trg, chg
     end
   end
 
@@ -190,7 +193,8 @@ class PhomoRule
   def environment
     constituents = @rule.length - 2 # what's present in the environment
     # some env may have been passed by the rules, takes priority
-    @environment ||= @rule[2] if constituents >= 1 # if rule[2] exists
+    # combine environment given from rules with original phomo environment
+    @environment ||= @rule[2] if constituents >= 1
     env_construct(@environment, @rule[3], @rule[4]) # translate constituents
   end
 
@@ -208,15 +212,19 @@ class PhomoRule
     end
   end
 
+  # gets tricky because else is like a change, not a check_condition
   def check_else(els)
-
+    # put through translator with original target to mimic as if
+    # else were change;
+    # literal=true to make sure always x>y syntax
+    return initial(@rule[0], els, true).sub(/\A(.*)>/, '').strip
   end
 
   def env_construct(cnd=nil, exp=nil, els=nil)
     c = "" # init string
-    c << " / #{check_condition(cnd)}" unless cnd.nil? # condition
-    c << " ! #{check_condition(exp)}" unless exp.nil? # exception
-    c << " > #{check_else(els)}" unless els.nil? # else
+    c << " / #{check_condition(cnd)}" unless (cnd.nil? || cnd.empty?) # condition
+    c << " ! #{check_condition(exp)}" unless (exp.nil? || exp.empty?) # exception
+    c << " > #{check_else(els)}" unless (els.nil? || els.empty?) # else
     c # returns only bits that are applicable (no more ///// rules yay)
   end
 
