@@ -10,7 +10,13 @@ class PhomoRule
   private
 
   def init_rule(rule)
-    rule.gsub(/\p{Lu}/,'[\\0]').gsub('?', '<').split('/')
+    r = rule.gsub(/\p{Lu}/,'[\\0]').gsub('?', '<').split('/')
+    unless r[0].gsub!('#', '*').nil?
+      # change # to * (TRG) or % (CHG) when not with _
+      r[1].gsub!(/(?<!_)#(?!_)/, '%')
+    end
+    r[1].gsub!('-', '#')
+    return r
   end
 
   ################
@@ -73,15 +79,20 @@ class PhomoRule
     end
   end
 
+  def space_rule?(tester)
+    if (sr = /\A((.*)#%)|%#(.*)\z/.match(tester))
+      is_prefix = sr[3].nil?
+      # return word to add, (bool) prefix? [false = suffix]
+      return [(is_prefix ? sr[2] : sr[3]), is_prefix]
+    else
+      return false
+    end
+  end
+
   ####################
   # RULE TRANSLATION #
   ####################
-  def initial
-    unless @rule[0].gsub!('#', '*').nil?
-      # change # to * (TRG) or % (CHG) when not with _
-      @rule[1].gsub!(/(?<!_)#(?!_)/, '%')
-    end
-
+  def initial # (TRG and CHG)
     # empty rule (you never know what blasphemous shit they might try)
     # /
     if @rule[0].empty? && @rule[1].empty?
@@ -153,6 +164,10 @@ class PhomoRule
     # #/?3   -->   *@2><
     elsif (wr = reverse_rule? @rule[1])
       return rule_position_reverse wr
+
+    elsif (sr = space_rule? @rule[1])
+      @environment = sr[1] ? env_word_initial : env_word_final
+      return rule_word_insertion sr[0]
 
     else # generic change, eg: a/e
       return rule_generic @rule[0], @rule[1]
@@ -236,6 +251,35 @@ class PhomoRule
   def rule_position_length_reverse(position, length)
     rule_reverse wildcard_length_position(position, length)
   end
+
+  def rule_word_insertion(word)
+    rule_insertion "##{word}"
+  end
+
+  ############################
+  # ENVIRONMENT CONSTRUCTORS #
+  ############################
+
+  def env_g(x)
+    " / #{x}"
+  end
+
+  def env_word_final
+    env_g "_#"
+  end
+
+  def env_word_initial
+    env_g "#_"
+  end
+
+  def env_after(x)
+    env_g "#{x}_"
+  end
+
+  def env_before(x)
+    env_g "_#{x}"
+  end
+
 end
 
 class Phomo2Sce
