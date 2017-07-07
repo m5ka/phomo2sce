@@ -171,7 +171,7 @@ class PhomoRule
     # #/#-na   -->   +#na / #_
     elsif (sr = space_rule? @rule[1])
       @environment = sr[1] ? env_word_initial : env_word_final
-      return rule_word_insertion sr[0]
+      return rule_word_insertion sr[0], sr[1]
 
     # generic change
     # a/e   -->   a > e
@@ -271,8 +271,8 @@ class PhomoRule
     rule_reverse wildcard_length_position(position, length)
   end
 
-  def rule_word_insertion(word)
-    rule_insertion "##{word}"
+  def rule_word_insertion(word, prefix)
+    rule_insertion (prefix ? "#{word}#" : "##{word}")
   end
 
   ############################
