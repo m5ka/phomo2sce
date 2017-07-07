@@ -196,6 +196,10 @@ class PhomoRule
       return "##{cr[1]}" # swap a# > #a because phomo is silly
     elsif (cr = /\A#([^_]+)\z/.match(cnd))
       return "#{cr[1]}#" # ditto, vice versa
+    elsif (eq = /\A(.+)=(\d+)\z/.match(cnd))
+      return "#{eq[1]}{=#{eq[2]}}" # [C]=2  -->  [C]{=2}
+    elsif (lg = /\A(.+)=(<|>)(\d+)\z/.match(cnd))
+      return "#{lg[1]}{#{lg[2]}#{lg[3]}}" # [C]=<2  -->  [C]{<2}
     else
       return cnd
     end

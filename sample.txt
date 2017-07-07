@@ -39,3 +39,8 @@ t/d/_*m
 h/ħ/t*_
 a/e/t#
 a/e/#m
+a/e/h
+a/e/tV#
+a/e/V=2
+a/e/V=<3
+a/e/V=>1
