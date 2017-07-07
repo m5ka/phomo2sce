@@ -208,7 +208,7 @@ class PhomoRule
   def env_construct(cnd=nil, exp=nil, els=nil)
     c = "" # init string
     c << " / #{check_condition(cnd)}" unless cnd.nil? # condition
-    c << " ! #{exp}" unless exp.nil? # exception
+    c << " ! #{check_condition(exp)}" unless exp.nil? # exception
     c << " > #{els}" unless els.nil? # else
     c # returns only bits that are applicable (no more ///// rules yay)
   end
