@@ -191,9 +191,19 @@ class PhomoRule
     env_construct(@environment) # translate constituents
   end
 
+  def check_condition(cnd) # make sure CND is compliant with SCE syntax
+    if (cr = /\A([^_]+)#\z/.match(cnd))
+      return "##{cr[1]}" # swap a# > #a because phomo is silly
+    elsif (cr = /\A#([^_]+)\z/.match(cnd))
+      return "#{cr[1]}#" # ditto, vice versa
+    else
+      return cnd
+    end
+  end
+
   def env_construct(cnd=nil, exp=nil, els=nil)
     c = "" # init string
-    c << " / #{cnd}" unless cnd.nil? # condition
+    c << " / #{check_condition(cnd)}" unless cnd.nil? # condition
     c << " ! #{exp}" unless exp.nil? # exception
     c << " > #{els}" unless els.nil? # else
     c # returns only bits that are applicable (no more ///// rules yay)
