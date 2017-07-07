@@ -17,7 +17,7 @@ class PhomoRule
       # change # to * (in TRG) or % (in CHG) when not with _
       r[1].gsub!(/(?<!_)#(?!_)/, '%')
     end
-    r[1].gsub!('-', '#') # - becomes # for word-insertions
+    r[1].gsub!(/(?<!@)\-/, '#') # - becomes # for word-insertions
     r # return ruleset as initialised array
   end
 
@@ -82,6 +82,7 @@ class PhomoRule
   end
 
   def space_rule?(tester)
+    puts "testing #{tester}"
     if (sr = /\A((.*)#%)|%#(.*)\z/.match(tester))
       is_prefix = sr[3].nil?
       # return word to add, (bool) prefix? [false = suffix]
@@ -94,7 +95,7 @@ class PhomoRule
   ####################
   # RULE TRANSLATION #
   ####################
-  def initial # (TRG and CHG)
+  def initial(literal=false) # (TRG and CHG)
     # empty rule (you never know what blasphemous crap they might try)
     # /
     if @rule[0].empty? && @rule[1].empty?
@@ -103,12 +104,12 @@ class PhomoRule
     # addition
     # /a
     elsif @rule[0].empty?
-      return rule_insertion @rule[1]
+      return rule_insertion @rule[1], literal
 
     # subtraction
     # a/
     elsif @rule[1].empty?
-      return rule_deletion @rule[0]
+      return rule_deletion @rule[0], literal
 
     # movement from a certain point and length to destination
     # #/>1@3^2   -->   *?{2}@0>^?@2
@@ -133,10 +134,10 @@ class PhomoRule
     elsif (pd = point_length_operation? @rule[1])
       if pd[0].empty?
         # if no change given, i.e deletion
-        return rule_wildcard_deletion(pd[2], pd[1])
+        return rule_wildcard_deletion pd[2], pd[1], literal
       else
         # if change given, i.e change
-        return rule_wildcard_generic(pd[0], pd[2], pd[1])
+        return rule_wildcard_generic pd[0], pd[2], pd[1]
       end
 
     # insertion at a certain point
@@ -149,7 +150,7 @@ class PhomoRule
         return rule_env_movement @rule[1].sub('%', ''), m_dest, false
       else
         # regular insertion
-        return rule_point_insertion ir[0], ir[1]
+        return rule_point_insertion ir[0], ir[1], literal
       end
 
     # generic rule at a certain point
@@ -169,9 +170,11 @@ class PhomoRule
 
     # insertion of separate word
     # #/#-na   -->   +#na / #_
+    # #/na-#   -->   +na# / _#
     elsif (sr = space_rule? @rule[1])
       @environment = sr[1] ? env_word_initial : env_word_final
-      return rule_word_insertion sr[0], sr[1]
+      puts "0 #{sr[0]} 1 #{sr[1]} L #{literal}"
+      return rule_word_insertion sr[0], sr[1], literal
 
     # generic change
     # a/e   -->   a > e
@@ -188,7 +191,7 @@ class PhomoRule
     constituents = @rule.length - 2 # what's present in the environment
     # some env may have been passed by the rules, takes priority
     @environment ||= @rule[2] if constituents >= 1 # if rule[2] exists
-    env_construct(@environment) # translate constituents
+    env_construct(@environment, @rule[3], @rule[4]) # translate constituents
   end
 
   def check_condition(cnd) # make sure CND is compliant with SCE syntax
@@ -205,11 +208,15 @@ class PhomoRule
     end
   end
 
+  def check_else(els)
+
+  end
+
   def env_construct(cnd=nil, exp=nil, els=nil)
     c = "" # init string
     c << " / #{check_condition(cnd)}" unless cnd.nil? # condition
     c << " ! #{check_condition(exp)}" unless exp.nil? # exception
-    c << " > #{els}" unless els.nil? # else
+    c << " > #{check_else(els)}" unless els.nil? # else
     c # returns only bits that are applicable (no more ///// rules yay)
   end
 
@@ -224,25 +231,33 @@ class PhomoRule
     rule_generic "#{from}@#{point}", to
   end
 
-  def rule_insertion(to)
-    "+#{to}"
+  def rule_insertion(to, literal=false)
+    literal ? rule_generic('', to) : "+#{to}"
   end
 
-  def rule_point_insertion(to, point)
-    rule_insertion "#{to}@#{point}"
+  def rule_point_insertion(to, point, literal=false)
+    if literal
+      return rule_generic point_ind(point), to
+    else
+      return rule_insertion "#{to}#{point_ind(point)}"
+    end
   end
 
-  def rule_deletion(to)
-    "-#{to}"
+  def rule_deletion(to, literal=false)
+    literal ? rule_generic(to, '') : "-#{to}"
   end
 
   def rule_env_movement(target, environment, delete=true)
     d_op = delete ? '^?' : '^'
-    "#{target} > #{d_op}#{environment}"
+    rule_generic target, "#{d_op}#{environment}"
   end
 
   def rule_movement(target, destination, delete=true)
     rule_env_movement target, "@#{destination}", delete
+  end
+
+  def point_ind(point)
+    "@#{point}"
   end
 
   def wildcard_length(length)
@@ -250,19 +265,19 @@ class PhomoRule
   end
 
   def wildcard_position(position)
-    "*@#{position}"
+    "*#{point_ind(position)}"
   end
 
   def wildcard_length_position(length, position)
-    "#{wildcard_length(length)}@#{position}"
+    "#{wildcard_length(length)}#{point_ind(position)}"
   end
 
   def rule_wildcard_generic(to, length, position)
     rule_generic wildcard_length_position(length, position), to
   end
 
-  def rule_wildcard_deletion(length, position)
-    rule_deletion wildcard_length_position(length, position)
+  def rule_wildcard_deletion(length, position, literal=false)
+    rule_deletion wildcard_length_position(length, position), literal
   end
 
   def rule_wildcard_movement(length, position, destination, delete=true)
@@ -285,8 +300,12 @@ class PhomoRule
     rule_reverse wildcard_length_position(position, length)
   end
 
-  def rule_word_insertion(word, prefix)
-    rule_insertion (prefix ? "#{word}#" : "##{word}")
+  def rule_word_insertion(word, prefix, literal=false)
+    if literal
+      rule_generic '*', (prefix ? "#{word}#%" : "%##{word}")
+    else
+      rule_insertion (prefix ? "#{word}#" : "##{word}"), false
+    end
   end
 
   ############################
