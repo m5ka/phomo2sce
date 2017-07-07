@@ -1,11 +1,12 @@
-class PhomoRule
+require 'pathname'
+class Phomo2Sce
   def initialize(rule)
     @rule = init_rule(rule)
   end
 
-  def to_sce
+  def to_sce(literal=false)
     # combine rule (trg & chg) and conditions
-    "#{initial(@rule[0], @rule[1])}#{environment}".strip
+    "#{initial(@rule[0], @rule[1], literal)}#{environment}".strip
   end
 
   private
@@ -334,46 +335,44 @@ class PhomoRule
 
 end
 
-class Phomo2Sce
-  def initialize(filename)
-    @filename = filename
-    load_ruleset
+# translate file from Phomo -> SCE
+def translate_file(inp, literal=false)
+  pn = Pathname.new(inp)
+  # check file exists
+  if pn.exist?
+    # open and read
+    text = File.open(inp).read
+    ruleset = text.gsub(/\r\n?/, "\n").split("\n") # split into rules
+    out = ""
+    # feed rules into converter and put output into variable
+    ruleset.each { |rule| out << "#{Phomo2Sce.new(rule).to_sce(literal)}\n" }
+    out # return translated file
+  else
+    puts "Error! Could not find file with path #{inp}"
   end
+end
 
-  def to_sce
-    arr_out = Array.new
-    @ruleset.each do |rule|
-      # read rules line-by-line, translating each >> arr_out
-      arr_out << convert_rule(rule)
-    end
-    arr_out # return output
-  end
-
-  private
-
-  def convert_rule(rule)
-    r = PhomoRule.new(rule)
-    r.to_sce # translate rule using PhomoRule methods
-  end
-
-  # load ruleset - will be changed for cws2
-  # as won't be from file, but from database
-  def load_ruleset
-    text=File.open(@filename).read
-    @ruleset = text.gsub(/\r\n?/, "\n").split("\n") # split by line
-  end
+def help_text
+  puts "phomo2sce v0.0.1 (alpha)"
+  puts "(c) Fleur Budek"
+  puts "To translate a file use: ruby phomo2sce.rb -f <filename>"
+  puts "To translate a single rule use: ruby phomo2sce.rb -r <rule>"
+  puts "For literal translation (without stylising rules), include the -l flag"
 end
 
 def run
   if ARGV[0] # running from command line - will change for cws2
-    p2s = Phomo2Sce.new(ARGV[0])
-    p2s.to_sce.each_with_index { |x, y| puts "#{y+1}: #{x}" }
+    args = ARGV.join(' ').strip
+    literal = (/(\A|\s)\-l(\s|\z)/ =~ args) # if -l flag included
+    if (a_rule = /\-r[\s+](\S+)/.match(args)) # if -r <rule>
+      puts Phomo2Sce.new(a_rule[1]).to_sce(literal) # convert and puts translation
+    elsif (a_set = /\-f[\s+](\S+)/.match(args)) # if -f <filename>
+      puts translate_file(a_set[1], literal) # give filename to translate_file
+    else
+      help_text # dumdum
+    end
   else
-    # i'll tell you what's what mate !!
-    puts "phomo2sce v0.0.1 (alpha)"
-    puts "(c) Fleur Budek"
-    puts "syntax: ruby phomo2sce.rb [filename]"
-    puts "where [filename] is a newline-separated list of phomo sound changes"
+    help_text # dumdumdum
   end
 end
-run if __FILE__==$0
+run if __FILE__==$0 # only run if from console
