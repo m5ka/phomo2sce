@@ -182,9 +182,8 @@ class PhomoRule
 
   # ENVIRONMENT #
   # PHOMO   / CND / EXP / ELS
-  # SCE     / CND ! EXP ? ELS
-  # (that probably isnt right SCE syntax but its best i can do)
-  # (because kat is asleep so i cant ask her lol)
+  # SCE     / CND ! EXP > ELS
+  # dragon hath awoken
   def environment
     constituents = @rule.length - 2 # what's present in the environment
     # some env may have been passed by the rules, takes priority
@@ -196,7 +195,7 @@ class PhomoRule
     c = "" # init string
     c << " / #{cnd}" unless cnd.nil? # condition
     c << " ! #{exp}" unless exp.nil? # exception
-    c << " ? #{els}" unless els.nil? # else
+    c << " > #{els}" unless els.nil? # else
     c # returns only bits that are applicable (no more ///// rules yay)
   end
 
