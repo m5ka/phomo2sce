@@ -15,7 +15,7 @@ ruby phomo2sce.rb -r a/e/_# [-l]
 The `-l` flag on both of these examples is the literal flag. If present it will stick to literal SCE syntax when translating (that is, no stylised insertion/deletion/movement rules).
 
 ## Ruleset Testing
-You can also use the Phomo2SceTest to test whether a certain file of newline-separated PhoMo rules will translate into SCE as expected by testing it against a target file.
+The additional Phomo2SceTest class can be used test whether a certain file of newline-separated PhoMo rules will translate into SCE as expected by testing it against a target file.
 ```
 ruby p2stest.rb sample.txt goal.txt [-l]
 ```
