@@ -5,7 +5,7 @@ class PhomoRule
 
   def to_sce
     # combine rule (trg & chg) and conditions
-    "#{initial(@rule[0], @rule[1])}#{environment}"
+    "#{initial(@rule[0], @rule[1])}#{environment}".strip
   end
 
   private
@@ -109,12 +109,12 @@ class PhomoRule
     # subtraction
     # a/
   elsif chg.empty?
-      return rule_deletion chg, literal
+      return rule_deletion trg, literal
 
     # movement from a certain point and length to destination
-    # #/>1@3^2   -->   *?{2}@0>^?@2
-    # #/>#_@_#^2   -->   *?{2} > ^?_#/#_
-    # #/>!#_@_#^2   -->   *?{2} > ^_#/#_
+    # #/>1@3^2   -->   *?{2}@0 > ^?@2
+    # #/>#_@_#^2   -->   *?{2} > ^?_# / #_
+    # #/>!#_@_#^2   -->   *?{2} > ^_# / #_
     elsif (mp = movement_point_length? chg)
       if /_/ =~ mp[1]
         if /!/ =~ mp[1]
@@ -124,7 +124,7 @@ class PhomoRule
           m_del = true
         end
         @environment = mp[1]
-        return rule_wildcard_env_movement mp[0], mp[2], m_del
+        return rule_wildcard_cnd_movement mp[0], mp[2], m_del
       else
         return rule_wildcard_movement mp[0], mp[1], mp[2]
       end
@@ -172,7 +172,7 @@ class PhomoRule
     # #/#-na   -->   +#na / #_
     # #/na-#   -->   +na# / _#
     elsif (sr = space_rule? chg)
-      if literal || !(@rule[2].empty?)
+      if literal || !(@rule[2].nil? || @rule[2].empty?)
         return rule_word_insertion sr[0], sr[1], true
       else
         @environment = sr[1] ? env_word_initial : env_word_final
@@ -261,7 +261,7 @@ class PhomoRule
   end
 
   def rule_movement(target, destination, delete=true)
-    rule_env_movement target, "@#{destination}", delete
+    rule_env_movement target, point_ind(destination), delete
   end
 
   def point_ind(point)
@@ -288,6 +288,10 @@ class PhomoRule
     rule_deletion wildcard_length_position(length, position), literal
   end
 
+  def rule_wildcard_cnd_movement(length, destination, delete=true)
+    rule_env_movement wildcard_length(length), destination, delete
+  end
+
   def rule_wildcard_movement(length, position, destination, delete=true)
     rule_movement wildcard_length_position(length, position), destination, delete
   end
@@ -305,7 +309,7 @@ class PhomoRule
   end
 
   def rule_position_length_reverse(position, length)
-    rule_reverse wildcard_length_position(position, length)
+    rule_reverse wildcard_length_position(length, position)
   end
 
   def rule_word_insertion(word, prefix, literal=false)
@@ -360,13 +364,16 @@ class Phomo2Sce
   end
 end
 
-if ARGV[0] # running from command line - will change for cws2
-  p2s = Phomo2Sce.new(ARGV[0])
-  p2s.to_sce.each_with_index { |x, y| puts "#{y+1}: #{x}" }
-else
-  # i'll tell you what's what mate !!
-  puts "phomo2sce v0.0.1 (alpha)"
-  puts "(c) Fleur Budek"
-  puts "syntax: ruby phomo2sce.rb [filename]"
-  puts "where [filename] is a newline-separated list of phomo sound changes"
+def run
+  if ARGV[0] # running from command line - will change for cws2
+    p2s = Phomo2Sce.new(ARGV[0])
+    p2s.to_sce.each_with_index { |x, y| puts "#{y+1}: #{x}" }
+  else
+    # i'll tell you what's what mate !!
+    puts "phomo2sce v0.0.1 (alpha)"
+    puts "(c) Fleur Budek"
+    puts "syntax: ruby phomo2sce.rb [filename]"
+    puts "where [filename] is a newline-separated list of phomo sound changes"
+  end
 end
+run if __FILE__==$0
