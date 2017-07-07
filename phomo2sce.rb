@@ -4,19 +4,21 @@ class PhomoRule
   end
 
   def to_sce
-    "#{initial}#{environment}"
+    "#{initial}#{environment}" # combine rule and conditions
   end
 
   private
 
+  # convert anything that needs outright converting at this initial stage
   def init_rule(rule)
+    # categories get square brackets and ? becomes <, also split rule
     r = rule.gsub(/\p{Lu}/,'[\\0]').gsub('?', '<').split('/')
     unless r[0].gsub!('#', '*').nil?
-      # change # to * (TRG) or % (CHG) when not with _
+      # change # to * (in TRG) or % (in CHG) when not with _
       r[1].gsub!(/(?<!_)#(?!_)/, '%')
     end
-    r[1].gsub!('-', '#')
-    return r
+    r[1].gsub!('-', '#') # - becomes # for word-insertions
+    r # return ruleset as initialised array
   end
 
   ################
@@ -93,7 +95,7 @@ class PhomoRule
   # RULE TRANSLATION #
   ####################
   def initial # (TRG and CHG)
-    # empty rule (you never know what blasphemous shit they might try)
+    # empty rule (you never know what blasphemous crap they might try)
     # /
     if @rule[0].empty? && @rule[1].empty?
       return ">"
@@ -165,29 +167,37 @@ class PhomoRule
     elsif (wr = reverse_rule? @rule[1])
       return rule_position_reverse wr
 
+    # insertion of separate word
+    # #/#-na   -->   +#na / #_
     elsif (sr = space_rule? @rule[1])
       @environment = sr[1] ? env_word_initial : env_word_final
       return rule_word_insertion sr[0]
 
-    else # generic change, eg: a/e
+    # generic change
+    # a/e   -->   a > e
+    else
       return rule_generic @rule[0], @rule[1]
     end
   end
 
+  # ENVIRONMENT #
   # PHOMO   / CND / EXP / ELS
   # SCE     / CND ! EXP ? ELS
+  # (that probably isnt right SCE syntax but its best i can do)
+  # (because kat is asleep so i cant ask her lol)
   def environment
-    constituents = @rule.length - 2
-    @environment ||= @rule[2] if constituents >= 1
-    env_construct(@environment)
+    constituents = @rule.length - 2 # what's present in the environment
+    # some env may have been passed by the rules, takes priority
+    @environment ||= @rule[2] if constituents >= 1 # if rule[2] exists
+    env_construct(@environment) # translate constituents
   end
 
   def env_construct(cnd=nil, exp=nil, els=nil)
-    c = ""
-    c << " / #{cnd}" unless cnd.nil?
-    c << " ! #{exp}" unless exp.nil?
-    c << " ? #{els}" unless els.nil?
-    c
+    c = "" # init string
+    c << " / #{cnd}" unless cnd.nil? # condition
+    c << " ! #{exp}" unless exp.nil? # exception
+    c << " ? #{els}" unless els.nil? # else
+    c # returns only bits that are applicable (no more ///// rules yay)
   end
 
   #####################
@@ -278,14 +288,6 @@ class PhomoRule
     "#_"
   end
 
-  def env_after(x)
-    "#{x}_"
-  end
-
-  def env_before(x)
-    "_#{x}"
-  end
-
 end
 
 class Phomo2Sce
@@ -297,30 +299,34 @@ class Phomo2Sce
   def to_sce
     arr_out = Array.new
     @ruleset.each do |rule|
+      # read rules line-by-line, translating each >> arr_out
       arr_out << convert_rule(rule)
     end
-    arr_out
+    arr_out # return output
   end
 
   private
 
   def convert_rule(rule)
     r = PhomoRule.new(rule)
-    r.to_sce
+    r.to_sce # translate rule using PhomoRule methods
   end
 
+  # load ruleset - will be changed for cws2
+  # as won't be from file, but from database
   def load_ruleset
-    line_num=0
     text=File.open(@filename).read
-    text.gsub!(/\r\n?/, "\n")
-    @ruleset = text.split("\n")
+    @ruleset = text.gsub(/\r\n?/, "\n").split("\n") # split by line
   end
 end
 
-if ARGV[0]
+if ARGV[0] # running from command line - will change for cws2
   p2s = Phomo2Sce.new(ARGV[0])
   p2s.to_sce.each_with_index { |x, y| puts "#{y+1}: #{x}" }
 else
-  puts "(c) Fleur B"
-  puts "use filename of sample sound changes"
+  # i'll tell you what's what mate !!
+  puts "phomo2sce v0.0.1 (alpha)"
+  puts "(c) Fleur Budek"
+  puts "syntax: ruby phomo2sce.rb [filename]"
+  puts "where [filename] is a newline-separated list of phomo sound changes"
 end
