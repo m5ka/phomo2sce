@@ -58,18 +58,15 @@ class Phomo2SceTest
     i_good = 0
     i_bad = 0
     @ruleset.each_with_index do |rule, ix| # loop through rules
-      puts "[#{(ix+1).to_s.light_blue}] Converting rule: #{rule}"
       r = Phomo2Sce.new(rule).to_sce(literal) # translate rule
-      puts "Output: #{r}"
       if @target[ix] == r # if matches goal, all is good
-        puts "No problems!".green
+        puts "[#{(ix+1).to_s.green}] #{rule}  -->  #{r}" # output
         i_good += 1
       else
-        puts "No match.".red # doesn't match goal, all is not good
-        puts "Goal was: #{@target[ix]}"
+        puts "[#{(ix+1).to_s.red}] #{rule}  -->  #{r}" # output
+        puts "  |--> #{'Expected: '.red}#{@target[ix]}" # doesn't match goal, all is not good
         i_bad += 1
       end
-      puts ''
     end
     # output test results
     puts "Test finished (tested #{rs_count} rules)"
