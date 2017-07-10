@@ -28,8 +28,9 @@ class Phomo2Sce
   ################
   def insertion_rule?(tester)
     if (ir = /\A(.+%|%.+)@((-)?[0-9]+)\z/.match(tester))
-      # return thing to be inserted, position of insertion
-      return [ir[1].sub('%', ''), ir[2]]
+      # return thing to be inserted, position of insertion, bool if % at start
+      sw = ir[1].strip.start_with?('%')
+      return [ir[1].sub('%', ''), ir[2], sw]
     else
       return false # no fuq u
     end
@@ -141,8 +142,7 @@ class Phomo2Sce
         return rule_wildcard_generic pd[0], pd[2], pd[1]
       end
 
-    # insertion at a certain point
-    # #/#a@1
+    # insertion rules
     elsif trg == '*' && (ir = insertion_rule? chg)
       if contains_category? chg
         # movement with category
@@ -150,8 +150,10 @@ class Phomo2Sce
         m_dest = chg.start_with?('%') ? '_#' : '#_'
         return rule_env_movement chg.sub('%', ''), m_dest, false
       else
-        # regular insertion
-        return rule_point_insertion ir[0], ir[1], literal
+        # generic infixing
+        # #/#a@1   -->   *?@1 > %a
+        # #/á#@-1   -->   *?@-1 > á%
+        return rule_point_insertion ir[0], ir[1], ir[2]
       end
 
     # generic rule at a certain point
@@ -244,12 +246,8 @@ class Phomo2Sce
     literal ? rule_generic('', to) : "+#{to}"
   end
 
-  def rule_point_insertion(to, point, literal=false)
-    if literal
-      return rule_generic point_ind(point), to
-    else
-      return rule_insertion "#{to}#{point_ind(point)}"
-    end
+  def rule_point_insertion(to, point, before)
+    rule_generic wildcard_position(point, false), (before ? "%#{to}" : "#{to}%")
   end
 
   def rule_deletion(to, literal=false)
@@ -273,8 +271,8 @@ class Phomo2Sce
     "*?{#{length}}"
   end
 
-  def wildcard_position(position)
-    "*#{point_ind(position)}"
+  def wildcard_position(position, greedy=true)
+    greedy ? "*#{point_ind(position)}" : "*?#{point_ind(position)}"
   end
 
   def wildcard_length_position(length, position)
@@ -313,9 +311,9 @@ class Phomo2Sce
     rule_reverse wildcard_length_position(length, position)
   end
 
-  def rule_word_insertion(word, prefix, literal=false)
+  def rule_word_insertion(word, prefix, literal=false, greedy=true)
     if literal
-      rule_generic '*', (prefix ? "#{word}#%" : "%##{word}")
+      rule_generic (greedy ? '*' : '*?'), (prefix ? "#{word}#%" : "%##{word}")
     else
       rule_insertion (prefix ? "#{word}#" : "##{word}"), false
     end
